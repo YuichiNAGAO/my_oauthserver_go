@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"text/template"
 
 	"oauthserver_go/utils/crypto"
 )
@@ -32,12 +33,18 @@ type Client struct {
 	secret      string
 }
 
+type User struct {
+	id string
+}
+
 var clientInfo = Client{
 	id:          "1234",
 	name:        "test",
 	redirectURL: "http://localhost:8080/callback",
 	secret:      "secret",
 }
+
+var tmpl *template.Template
 
 var sessionList = make(map[string]Session)
 
@@ -111,10 +118,42 @@ func auth(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, cookie)
 
+	log.Printf("%T", tmpl)
+
+	m := map[string]string{
+		"ClientId": session.client,
+		"Scope":    session.scopes,
+	}
+
+	err := tmpl.Execute(w, m)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("return login page...")
+
+}
+
+func authcheck(w http.ResponseWriter, r *http.Request) {
+	log.Print(r.FormValue("username"))
+	log.Print(r.FormValue("password"))
+
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+
 }
 
 func main() {
+	var err error
+	tmpl, err = template.ParseFiles("html/tpls.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("%T", tmpl)
+
 	http.HandleFunc("/", homeHandle)
 	http.HandleFunc("/auth", auth)
+	http.HandleFunc("/authcheck", authcheck)
 	http.ListenAndServe(":8080", nil)
 }
