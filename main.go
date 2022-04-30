@@ -5,19 +5,16 @@ import (
 	"log"
 	"net/http"
 	"text/template"
+	"time"
 
 	"oauthserver_go/utils/crypto"
 )
 
-func homeHandle(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Welcome to the home page!")
-}
-
 type Session struct {
-	client                string
+	client_id             string
 	state                 string
 	scopes                string
-	redirectUri           string
+	redirect_uri          string
 	code_challenge        string
 	code_challenge_method string
 	// OIDC用
@@ -34,7 +31,17 @@ type Client struct {
 }
 
 type User struct {
-	id string
+	id       int
+	name     string
+	password string
+}
+
+type AuthCode struct {
+	user         string
+	client_id    string
+	scopes       string
+	redirect_uri string
+	expires_at   int64
 }
 
 var clientInfo = Client{
@@ -44,17 +51,25 @@ var clientInfo = Client{
 	secret:      "secret",
 }
 
+var testUser = User{
+	id:       1111,
+	name:     "test",
+	password: "hoge",
+}
+
 var tmpl *template.Template
 
 var sessionList = make(map[string]Session)
 
+var authCodeList = make(map[string]AuthCode)
+
 func auth(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	session := Session{
-		client:      query.Get("client_id"),
-		state:       query.Get("state"),
-		scopes:      query.Get("scope"),
-		redirectUri: query.Get("redirect_uri"),
+		client_id:    query.Get("client_id"),
+		state:        query.Get("state"),
+		scopes:       query.Get("scope"),
+		redirect_uri: query.Get("redirect_uri"),
 	}
 	requiredParameter := []string{"response_type", "client_id", "redirect_uri"}
 	fmt.Printf("%T\n", requiredParameter)
@@ -121,7 +136,7 @@ func auth(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%T", tmpl)
 
 	m := map[string]string{
-		"ClientId": session.client,
+		"ClientId": session.client_id,
 		"Scope":    session.scopes,
 	}
 
@@ -136,11 +151,55 @@ func auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func authcheck(w http.ResponseWriter, r *http.Request) {
+
 	log.Print(r.FormValue("username"))
 	log.Print(r.FormValue("password"))
 
 	username := r.FormValue("username")
 	password := r.FormValue("password")
+
+	if username != testUser.name || password != testUser.password {
+		log.Printf("%s coundn't login", username)
+		w.Write([]byte("login failed"))
+		return
+	}
+
+	cookie, err := r.Cookie("session")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("%T", cookie)
+	v := sessionList[cookie.Value]
+	log.Print(v)
+
+	authCodeid := crypto.SecureRandom()
+
+	authCode := AuthCode{
+		user:         username,
+		client_id:    v.client_id,
+		scopes:       v.scopes,
+		redirect_uri: v.redirect_uri,
+		expires_at:   time.Now().Unix() + 300, //単位は秒
+	}
+
+	authCodeList[authCodeid] = authCode
+
+	// log.Printf("authCode: %T", authCode)
+	log.Printf("authCode: %v", authCode)
+
+	location := fmt.Sprintf("%s?code=%s&state=%s", v.redirect_uri, authCodeid, v.state)
+	w.Header().Add("Location", location)
+	w.WriteHeader(302)
+}
+
+func token(w http.ResponseWriter, r *http.Request) {
+	query := r.Query()
+	required_params := []string{"grant_type", "code", "client_id", "redirect_uri"}
+
+	for _, v := range required_params {
+		if query[]
+	}
 
 }
 
@@ -151,9 +210,29 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Printf("%T", tmpl)
+	tt := time.Now().Unix()
+	t := time.Now()
+	log.Printf("%T", tt)
+	log.Print(tt)
+	log.Printf("%T", t)
+	log.Print(t)
+	time.Sleep(time.Second * 1)
+	ttr := time.Now().Unix()
+	log.Print(ttr)
 
-	http.HandleFunc("/", homeHandle)
 	http.HandleFunc("/auth", auth)
 	http.HandleFunc("/authcheck", authcheck)
+	http.HandleFunc("/token", authcheck)
 	http.ListenAndServe(":8080", nil)
 }
+
+/*
+- クライアント: web アプリ https://client.example.com
+  - リダイレクト URI: https://client.example.com/cb
+- 認可サーバー:
+  - 認可エンドポイント: https://server.example.com/authorize
+  - トークンエンドポイント: https://server.example.com/token
+
+https://zenn.dev/zaki_yama/articles/oauth2-authorization-code-grant-and-pkce#10.-%E8%AA%8D%E5%8F%AF%E3%82%B3%E3%83%BC%E3%83%89%E7%99%BA%E8%A1%8C
+https://qiita.com/TakahikoKawasaki/items/e508a14ed960347cff11
+*/
