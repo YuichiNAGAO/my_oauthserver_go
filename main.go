@@ -160,7 +160,7 @@ func authcheck(w http.ResponseWriter, r *http.Request) {
 
 	if username != testUser.name || password != testUser.password {
 		log.Printf("%s coundn't login", username)
-		w.Write([]byte("login failed"))
+		w.Write([]byte("Login failed"))
 		return
 	}
 
@@ -194,12 +194,66 @@ func authcheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func token(w http.ResponseWriter, r *http.Request) {
-	query := r.Query()
+	if err := r.ParseForm(); err != nil {
+		log.Fatal(err)
+	}
+	query := r.Form
 	required_params := []string{"grant_type", "code", "client_id", "redirect_uri"}
 
+	// log.Printf("%T", query)
+	// log.Print(query)
+	// log.Print(query["grant_type"])
+	// a, b := query["grant_type"]
+	// log.Print(a)
+	// log.Print(b)
+	// log.Printf("%T", query["grant_type"])
+
 	for _, v := range required_params {
-		if query[]
+		if _, ok := query[v]; !ok {
+			log.Printf("%s is missiong", v)
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(fmt.Sprintf("invalid request. %s is missing", v)))
+			return
+		}
 	}
+
+	if query.Get("grant_type") != "authorization_code" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Invalid request. Only authorization code flow is supported.\n"))
+		return
+	}
+	log.Printf("%T", query.Get("code"))
+
+	v, ok := authCodeList[query.Get("code")]
+	if !ok {
+		log.Println("Authrization code doesn't exist")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("No authrization code.\n"))
+		return
+	}
+	log.Print(v)
+
+	if v.client_id != query.Get("client_id") {
+		log.Println("client_id doesn't match")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid_request. Client id is invalid.\n"))
+		return
+	}
+
+	if v.redirect_uri != query.Get("redirect_uri") {
+		log.Println("redirect_uri doesn't match")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid_request. Redirect uri is invalid.\n"))
+		return
+	}
+
+	// log.Printf("%T", query)
+	// log.Print(query)
+	// log.Print(r)
+
+	// for _, v := range required_params {
+	// 	if query[]
+	// }
 
 }
 
@@ -222,7 +276,7 @@ func main() {
 
 	http.HandleFunc("/auth", auth)
 	http.HandleFunc("/authcheck", authcheck)
-	http.HandleFunc("/token", authcheck)
+	http.HandleFunc("/token", token)
 	http.ListenAndServe(":8080", nil)
 }
 
