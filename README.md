@@ -12,11 +12,11 @@ OAuth認可コードフローに対応した認可サーバーを簡易的に実
       *`認可コードフローでは、認可リクエストパラメーター群は、クエリー部に埋め込まれる`
       
       - パラメタ
-      response_type = code (これは認可コードフローに対応する)
-      client_id
-      redirect_uri = [リダイレクトURI(これはクライアント側に実装される)]
-      state
-      scope
+      response_type = code (これは認可コードフローに対応する)  
+      client_id  
+      redirect_uri = [リダイレクトURI(これはクライアント側に実装される)]  
+      state  
+      scope  
     
     - <u>レスポンス [認可サーバー->ブラウザ]</u>
      
@@ -33,9 +33,9 @@ OAuth認可コードフローに対応した認可サーバーを簡易的に実
       *`認可リクエストにredirect_uriリクエストパラメーターが含まれていた場合、トークンリクエストにも含まれていなければならない.`
     
       - パラメタ
-      grant_type = authorization_code *テーブル1参照
-      code = [認可コード]
-      redirect_uri = [リダイレクトURI(認可リクエストに含まれていたものと同じ)]
+      grant_type = authorization_code *テーブル1参照  
+      code = [認可コード]  
+      redirect_uri = [リダイレクトURI(認可リクエストに含まれていたものと同じ)]  
       
     - レスポンス
 
