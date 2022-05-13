@@ -44,6 +44,13 @@ type AuthCode struct {
 	expires_at   int64
 }
 
+type Token struct {
+	user  string
+	client_id string
+	scopes string
+	expires_at int64
+}
+
 var clientInfo = Client{
 	id:          "1234",
 	name:        "test",
@@ -246,6 +253,14 @@ func token(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("invalid_request. Redirect uri is invalid.\n"))
 		return
 	}
+
+	if v.expires_at <  time.Now().Unix() {
+		log.Println("Authrization code expired")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid_request. Authrization code expired.\n")))
+		return
+	}
+
 
 	// log.Printf("%T", query)
 	// log.Print(query)
